@@ -19,7 +19,7 @@ export type WeightInput = z.infer<typeof weightSchema>;
 export const trainingSchema = z.object({
   date: z.string().regex(dateRegex, 'Data inválida'),
   modality: z.enum(['Ciclismo', 'Futebol', 'Caminhada', 'Corrida', 'Academia', 'Outro'], {
-    required_error: 'Selecione uma modalidade',
+    message: 'Selecione uma modalidade',
   }),
   cycling_type: z.enum(['Recuperação', 'Z2', 'Z3', 'Z4', 'Z5', 'Longão', 'Livre']).optional().nullable(),
   duration: z
@@ -130,7 +130,7 @@ export const healthSchema = z.object({
     .transform((val) => (typeof val === 'string' ? parseFloat(val.replace(',', '.')) : val))
     .refine((val) => !isNaN(val) && val >= 0 && val <= 24, 'As horas de sono devem estar entre 0 e 24'),
   sleep_quality: z.enum(['Ruim', 'Regular', 'Bom', 'Excelente'], {
-    required_error: 'Selecione a qualidade do sono',
+    message: 'Selecione a qualidade do sono',
   }),
   leg_pain: z
     .union([z.string(), z.number()])
@@ -141,10 +141,10 @@ export const healthSchema = z.object({
     .transform((val) => (typeof val === 'string' ? parseInt(val) : val))
     .refine((val) => !isNaN(val) && val >= 1 && val <= 10, 'A percepção de esforço (RPE) deve ser de 1 a 10'),
   mood: z.enum(['Irritado', 'Cansado', 'Normal', 'Feliz', 'Energizado'], {
-    required_error: 'Selecione seu humor',
+    message: 'Selecione seu humor',
   }),
   energy: z.enum(['Muito Baixa', 'Baixa', 'Normal', 'Alta', 'Muito Alta'], {
-    required_error: 'Selecione seu nível de energia',
+    message: 'Selecione seu nível de energia',
   }),
 });
 

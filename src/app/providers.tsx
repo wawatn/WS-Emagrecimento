@@ -2,14 +2,13 @@
 
 import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 interface ProvidersProps {
   children: React.ReactNode;
 }
 
 export default function Providers({ children }: ProvidersProps) {
-  // Inicialização do QueryClient dentro do estado para garantir que cada aba/requisição
-  // tenha sua própria instância (evitando compartilhamento de estado no SSR).
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -26,7 +25,7 @@ export default function Providers({ children }: ProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <AuthProvider>{children}</AuthProvider>
     </QueryClientProvider>
   );
 }

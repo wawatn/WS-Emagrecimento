@@ -1,6 +1,6 @@
 // =========================================================================
--- PROJETO 100KG - DEFINIÇÕES DE TIPOS TYPESCRIPT PARA O BANCO DE DADOS
--- =========================================================================
+// PROJETO 100KG - DEFINIÇÕES DE TIPOS TYPESCRIPT PARA O BANCO DE DADOS
+// =========================================================================
 
 export interface Profile {
   id: string;
