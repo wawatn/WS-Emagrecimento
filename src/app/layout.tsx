@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Projeto 100KG",
   description: "Sistema pessoal para acompanhamento de evolução física e treinos",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
