@@ -1,5 +1,7 @@
 'use client';
 
+// Force clean build to inject new env variables from Vercel dashboard
+
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthScreen } from '@/components/auth/AuthScreen';
