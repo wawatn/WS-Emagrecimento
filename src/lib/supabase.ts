@@ -11,4 +11,8 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_A
   );
 }
 
+if (typeof window !== 'undefined') {
+  console.log('DEBUG - Supabase URL em uso:', supabaseUrl);
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
