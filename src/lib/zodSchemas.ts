@@ -3,6 +3,21 @@ import { z } from 'zod';
 // Regex para validação de data no formato YYYY-MM-DD
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
+// Helpers estritos para conversão e higienização de inputs numéricos opcionais
+const parseOptionalFloat = (val: unknown): number | null => {
+  if (val === undefined || val === null || val === '') return null;
+  if (typeof val === 'number') return val;
+  const parsed = parseFloat(String(val).replace(',', '.'));
+  return isNaN(parsed) ? null : parsed;
+};
+
+const parseOptionalInt = (val: unknown): number | null => {
+  if (val === undefined || val === null || val === '') return null;
+  if (typeof val === 'number') return val;
+  const parsed = parseInt(String(val), 10);
+  return isNaN(parsed) ? null : parsed;
+};
+
 // 1. Schema de Peso Diário
 export const weightSchema = z.object({
   date: z.string().regex(dateRegex, 'Data inválida. Use o formato AAAA-MM-DD'),
@@ -13,7 +28,7 @@ export const weightSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
-export type WeightInput = z.infer<typeof weightSchema>;
+export type WeightInput = z.input<typeof weightSchema>;
 
 // 2. Schema de Treino
 export const trainingSchema = z.object({
@@ -26,46 +41,14 @@ export const trainingSchema = z.object({
     .union([z.string(), z.number()])
     .transform((val) => (typeof val === 'string' ? parseInt(val) : val))
     .refine((val) => !isNaN(val) && val > 0, 'A duração deve ser maior que zero minutos'),
-  calories: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseInt(val) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  distance: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  avg_hr: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseInt(val) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  max_hr: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseInt(val) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  avg_cadence: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseInt(val) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  max_cadence: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseInt(val) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  avg_speed: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  elevation: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
+  calories: z.any().transform(parseOptionalInt),
+  distance: z.any().transform(parseOptionalFloat),
+  avg_hr: z.any().transform(parseOptionalInt),
+  max_hr: z.any().transform(parseOptionalInt),
+  avg_rose: z.any().transform(parseOptionalInt), // Mapeado extra
+  avg_cadence: z.any().transform(parseOptionalInt),
+  avg_speed: z.any().transform(parseOptionalFloat),
+  elevation: z.any().transform(parseOptionalFloat),
   notes: z.string().optional().nullable(),
 }).refine((data) => {
   if (data.modality === 'Ciclismo' && !data.cycling_type) {
@@ -77,50 +60,22 @@ export const trainingSchema = z.object({
   path: ['cycling_type'],
 });
 
-export type TrainingInput = z.infer<typeof trainingSchema>;
+export type TrainingInput = z.input<typeof trainingSchema>;
 
 // 3. Schema de Medidas Corporais
 export const measurementSchema = z.object({
   date: z.string().regex(dateRegex, 'Data inválida'),
-  chest: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  arm: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  abdomen: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  waist: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  hip: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  thigh: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
-  calf: z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => (typeof val === 'string' && val.trim() !== '' ? parseFloat(val.replace(',', '.')) : val === '' ? undefined : val))
-    .optional()
-    .nullable(),
+  chest: z.any().transform(parseOptionalFloat),
+  arm: z.any().transform(parseOptionalFloat),
+  abdomen: z.any().transform(parseOptionalFloat),
+  waist: z.any().transform(parseOptionalFloat),
+  hip: z.any().transform(parseOptionalFloat),
+  thigh: z.any().transform(parseOptionalFloat),
+  calf: z.any().transform(parseOptionalFloat),
   notes: z.string().optional().nullable(),
 });
 
-export type MeasurementInput = z.infer<typeof measurementSchema>;
+export type MeasurementInput = z.input<typeof measurementSchema>;
 
 // 4. Schema de Saúde e Sono
 export const healthSchema = z.object({
@@ -148,4 +103,4 @@ export const healthSchema = z.object({
   }),
 });
 
-export type HealthInput = z.infer<typeof healthSchema>;
+export type HealthInput = z.input<typeof healthSchema>;
