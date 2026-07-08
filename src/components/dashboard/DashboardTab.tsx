@@ -2,6 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { useFitnessData } from '@/hooks/useFitnessData';
+import { PlannedWorkout } from '@/types/database.types';
 import {
   TrendingDown,
   Zap,
@@ -12,6 +13,8 @@ import {
   AlertCircle,
   TrendingUp,
   Target,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -22,28 +25,30 @@ export function DashboardTab() {
   const { data: weights = [] } = useWeights();
   const { data: trainings = [] } = useTrainings();
 
+  // Meta de frequência semanal dinâmica (do perfil ou padrão 3)
+  const targetFrequency = profile?.weekly_training_target || 3;
+
   // 1. CÁLCULO DE MÉTRICAS DE PESO
   const weightStats = useMemo(() => {
     if (weights.length === 0) {
       return {
         current: 0,
-        start: 0,
+        start: profile?.start_weight || 0,
         lost: 0,
         target: profile?.target_weight || 100,
         streak: 0,
       };
     }
 
-    // Ordenados por data crescente para histórico e decrescente para mais recentes
     const sortedAsc = [...weights].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const sortedDesc = [...weights].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    const start = sortedAsc[0].weight;
+    const start = profile?.start_weight || sortedAsc[0].weight;
     const current = sortedDesc[0].weight;
     const lost = start - current;
     const target = profile?.target_weight || 100;
 
-    // Cálculo da sequência de dias consecutivos registrando peso (streak)
+    // Cálculo da sequência de dias consecutivos registrando peso
     let streak = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -51,7 +56,6 @@ export function DashboardTab() {
     const dates = new Set(weights.map((w) => w.date));
     let checkDate = new Date(today);
 
-    // Se não registrou hoje, checa a partir de ontem
     if (!dates.has(checkDate.toISOString().split('T')[0])) {
       checkDate.setDate(checkDate.getDate() - 1);
     }
@@ -76,26 +80,20 @@ export function DashboardTab() {
     // Treinos do mês atual
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const weeklyTrainings = trainings.filter((t) => new Date(t.date) >= startOfWeek);
-    const monthlyTrainings = trainings.filter((t) => new Date(t.date) >= startOfMonth);
+    const weeklyTrainings = trainings.filter((t) => new Date(t.date + 'T00:00:00') >= startOfWeek);
+    const monthlyTrainings = trainings.filter((t) => new Date(t.date + 'T00:00:00') >= startOfMonth);
 
     const totalHours = trainings.reduce((acc, t) => acc + t.duration, 0) / 60;
     const totalCalories = trainings.reduce((acc, t) => acc + (t.calories || 0), 0);
 
-    // Dias treinados (sem duplicar treinos no mesmo dia)
     const uniqueDays = new Set(trainings.map((t) => t.date));
     const daysTrained = uniqueDays.size;
 
-    // Cálculo da sequência de dias seguidos de treino (streak)
+    // Sequência de treinos
     let trainingStreak = 0;
-    const uniqueDatesSorted = Array.from(uniqueDays).sort(
-      (a, b) => new Date(b).getTime() - new Date(a).getTime()
-    );
-
     let checkDate = new Date(today);
     checkDate.setHours(0, 0, 0, 0);
 
-    // Permite 1 dia de descanso antes de quebrar a sequência
     const todayStr = checkDate.toISOString().split('T')[0];
     checkDate.setDate(checkDate.getDate() - 1);
     const yesterdayStr = checkDate.toISOString().split('T')[0];
@@ -119,6 +117,7 @@ export function DashboardTab() {
       totalHours,
       totalCalories,
       streak: trainingStreak,
+      weeklyTrainings, // Retornado para cruzamento com o planejador
     };
   }, [trainings]);
 
@@ -128,27 +127,22 @@ export function DashboardTab() {
     if (current === 0) return null;
 
     const milestones = [120, 115, 110, 105, 100];
-    
-    // Determinar a meta intermediária ativa
-    // A meta ativa é a menor milestone que ainda é menor/igual ao peso atual, ou a primeira da lista que é menor que o peso atual.
     let activeMilestone = 100;
-    let previousMilestone = 130; // Ponto de partida padrão
+    let previousMilestone = weightStats.start > 0 ? Math.ceil(weightStats.start) : 130;
 
     for (let i = 0; i < milestones.length; i++) {
       if (current > milestones[i]) {
         activeMilestone = milestones[i];
-        previousMilestone = i === 0 ? milestones[0] + 10 : milestones[i - 1];
+        previousMilestone = i === 0 ? Math.max(previousMilestone, milestones[0] + 5) : milestones[i - 1];
         break;
       }
     }
 
-    // Porcentagem de progresso da milestone ativa
-    // Se o peso está descendo de previousMilestone para activeMilestone
     const totalDiff = previousMilestone - activeMilestone;
     const currentDiff = previousMilestone - current;
     const percent = Math.min(Math.max((currentDiff / totalDiff) * 100, 0), 100);
 
-    // Previsão de chegada baseada nas últimas 3 semanas de perda de peso
+    // Previsão baseada nas últimas 3 semanas
     let forecastWeeks = 'Sem dados de ritmo';
     const threeWeeksAgo = new Date();
     threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
@@ -163,7 +157,7 @@ export function DashboardTab() {
       const weightLost3W = firstWeight - lastWeight;
 
       if (weightLost3W > 0.1) {
-        const weeklyLossRate = weightLost3W / 3; // Média semanal
+        const weeklyLossRate = weightLost3W / 3;
         const remainingWeight = current - activeMilestone;
         const weeks = remainingWeight / weeklyLossRate;
         forecastWeeks = weeks <= 0 ? 'Meta atingida!' : `${Math.ceil(weeks)} semanas`;
@@ -178,36 +172,32 @@ export function DashboardTab() {
     };
   }, [weightStats, weights]);
 
-  // 4. MOTOR DE INSIGHTS INTELIGENTES
+  // 4. MOTOR DE INSIGHTS
   const insights = useMemo(() => {
     const list: string[] = [];
     if (weightStats.current === 0) return ['Seja bem-vindo! Faça seus primeiros registros de peso e treinos para ver os insights.'];
 
-    // Insight 1: Peso perdido absoluto
     if (weightStats.lost > 0) {
       list.push(`Você já eliminou ${weightStats.lost.toFixed(1)} kg no total desde o início.`);
     }
 
-    // Insight 2: Ritmo de perda de peso (últimos 30 dias)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const weightsLast30D = weights
-      .filter((w) => new Date(w.date) >= thirtyDaysAgo)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    if (weightsLast30D.length >= 2) {
-      const lost30 = weightsLast30D[0].weight - weightsLast30D[weightsLast30D.length - 1].weight;
-      if (lost30 > 0) {
-        list.push(`Você perdeu ${lost30.toFixed(1)} kg nos últimos 30 dias. Bom ritmo!`);
+    if (weights.length >= 2) {
+      const sorted = [...weights].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const last30Days = new Date();
+      last30Days.setDate(last30Days.getDate() - 30);
+      const weight30DaysAgo = sorted.find((w) => new Date(w.date) <= last30Days);
+      if (weight30DaysAgo) {
+        const lost30 = weight30DaysAgo.weight - sorted[0].weight;
+        if (lost30 > 0) {
+          list.push(`Você perdeu ${lost30.toFixed(1)} kg nos últimos 30 dias. Bom ritmo!`);
+        }
       }
     }
 
-    // Insight 3: Quantidade de treinos na semana
     if (trainingStats.weeklyCount > 0) {
       list.push(`Você treinou ${trainingStats.weeklyCount} ${trainingStats.weeklyCount === 1 ? 'vez' : 'vezes'} esta semana.`);
     }
 
-    // Insight 4: Faltando para a meta ativa
     if (goalProgress) {
       const rem = weightStats.current - goalProgress.activeMilestone;
       if (rem > 0) {
@@ -215,34 +205,14 @@ export function DashboardTab() {
       }
     }
 
-    // Insight 5: Dias sem registrar peso
-    if (weights.length > 0) {
-      const lastWeightDate = new Date(weights[0].date);
-      const diffTime = Math.abs(new Date().getTime() - lastWeightDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) - 1;
-      if (diffDays >= 3) {
-        list.push(`Você está há ${diffDays} dias sem registrar seu peso. Vamos voltar à rotina?`);
-      }
-    }
-
-    // Insight 6: Comparação de Z2 (Ciclismo)
-    const cyclingZ2Trainings = trainings.filter(
-      (t) => t.modality === 'Ciclismo' && t.cycling_type === 'Z2'
-    );
-    if (cyclingZ2Trainings.length >= 2) {
-      const totalMinutesZ2 = cyclingZ2Trainings.reduce((acc, t) => acc + t.duration, 0);
-      list.push(`Você acumulou ${totalMinutesZ2} minutos de treino em Z2 (cárdio regenerativo).`);
-    }
-
-    // Garantir que sempre existam insights
     if (list.length === 0) {
       list.push('Continue registrando peso e treinos diariamente para gerar insights de ritmo e consistência.');
     }
 
-    return list.slice(0, 3); // Retorna os 3 mais relevantes
-  }, [weightStats, trainingStats, goalProgress, weights, trainings]);
+    return list.slice(0, 3);
+  }, [weightStats, trainingStats, goalProgress, weights]);
 
-  // Histórico de pesos para o gráfico simplificado do dashboard (últimos 10 registros)
+  // Gráfico de Peso Simplificado
   const chartData = useMemo(() => {
     return [...weights]
       .slice(0, 10)
@@ -253,9 +223,53 @@ export function DashboardTab() {
       }));
   }, [weights]);
 
+  // Cruzamento do Cronograma Planejado com os treinos realizados na semana
+  const workoutPlanStatus = useMemo(() => {
+    if (!profile?.weekly_workout_plan || !Array.isArray(profile.weekly_workout_plan)) {
+      return [];
+    }
+
+    const plan = profile.weekly_workout_plan as PlannedWorkout[];
+    const weeklyTrainings = trainingStats.weeklyTrainings;
+
+    // Mapeador de nomes de dias para dias da semana Javascript (0 = Domingo, 1 = Segunda...)
+    const dayMap: Record<string, number> = {
+      'Segunda-feira': 1,
+      'Terça-feira': 2,
+      'Quarta-feira': 3,
+      'Quinta-feira': 4,
+      'Sexta-feira': 5,
+      'Sábado': 6,
+      'Domingo': 0,
+    };
+
+    return plan.map((p) => {
+      const targetDay = dayMap[p.day];
+      
+      // Checar se o usuário já realizou o treino da modalidade programada neste dia da semana
+      const isCompleted = weeklyTrainings.some((t) => {
+        const trainingDate = new Date(t.date + 'T00:00:00');
+        const trainingDay = trainingDate.getDay();
+        
+        // Verifica se coincide a modalidade (ou qualquer treino se for livre/outro) e o dia
+        const matchesDay = trainingDay === targetDay;
+        const matchesModality = 
+          p.modality === 'Descanso' ? false :
+          t.modality === p.modality;
+
+        return matchesDay && matchesModality;
+      });
+
+      return {
+        ...p,
+        completed: isCompleted,
+      };
+    });
+  }, [profile, trainingStats.weeklyTrainings]);
+
   return (
     <div className="space-y-6">
-      {/* 1. SEÇÃO DE INSIGHTS INTELIGENTES */}
+      {/* 1. INSIGHTS INTELIGENTES */}
       <section className="rounded-3xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/20 to-blue-950/20 p-5">
         <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3">
           <AlertCircle className="h-4 w-4" />
@@ -276,7 +290,7 @@ export function DashboardTab() {
         </ul>
       </section>
 
-      {/* 2. GRID DE MÉTRICAS PRINCIPAIS */}
+      {/* 2. METRIC CARDS */}
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {/* Card 1: Peso Atual */}
         <div className="rounded-2xl border border-[#1f293d]/50 bg-[#131929]/50 p-4">
@@ -306,36 +320,54 @@ export function DashboardTab() {
           </span>
         </div>
 
-        {/* Card 3: Dias Treinados */}
+        {/* Card 3: Consistência Semanal Dinâmica */}
         <div className="rounded-2xl border border-[#1f293d]/50 bg-[#131929]/50 p-4">
           <div className="flex items-center justify-between text-[#6b7280]">
-            <span className="text-xs font-bold uppercase tracking-wider">Dias Ativos</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Frequência</span>
             <Calendar className="h-4 w-4 text-[#3b82f6]" />
           </div>
           <p className="mt-2 text-2xl font-black text-[#f3f4f6]">
-            {trainingStats.daysTrained}
+            {trainingStats.weeklyCount} / {targetFrequency}
           </p>
           <span className="text-[10px] text-[#6b7280] font-semibold">
-            Esta semana: {trainingStats.weeklyCount}x
+            Treinos esta semana (Meta: {targetFrequency}x)
           </span>
         </div>
 
-        {/* Card 4: Sequência (Streak) */}
+        {/* Card 4: Streak de Treinos */}
         <div className="rounded-2xl border border-[#1f293d]/50 bg-[#131929]/50 p-4">
           <div className="flex items-center justify-between text-[#6b7280]">
-            <span className="text-xs font-bold uppercase tracking-wider">Streak Treino</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Streak Ativo</span>
             <Zap className="h-4 w-4 text-orange-400 animate-pulse" />
           </div>
           <p className="mt-2 text-2xl font-black text-orange-400">
             {trainingStats.streak} {trainingStats.streak === 1 ? 'Dia' : 'Dias'}
           </p>
           <span className="text-[10px] text-[#6b7280] font-semibold">
-            Sequência peso: {weightStats.streak} dias
+            Consistência registrada
           </span>
         </div>
       </section>
 
-      {/* 3. METAS E METAS INTERMEDIÁRIAS */}
+      {/* Barra de Progresso de Frequência Semanal */}
+      <section className="rounded-2xl border border-[#1f293d]/40 bg-[#131929]/20 p-4">
+        <div className="flex justify-between items-center text-xs font-bold mb-2">
+          <span className="text-[#9ca3af]">Consistência da Semana Atual</span>
+          <span className="text-emerald-400">
+            {Math.min(Math.round((trainingStats.weeklyCount / targetFrequency) * 100), 100)}% da meta
+          </span>
+        </div>
+        <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-[#090d16] border border-[#1f293d]/30">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min((trainingStats.weeklyCount / targetFrequency) * 100, 100)}%` }}
+            transition={{ duration: 0.6 }}
+            className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
+          />
+        </div>
+      </section>
+
+      {/* 3. METAS INTERMEDIÁRIAS */}
       {goalProgress && (
         <section className="rounded-3xl border border-[#1f293d]/50 bg-[#131929]/30 p-5">
           <div className="flex items-center justify-between mb-3">
@@ -348,12 +380,11 @@ export function DashboardTab() {
             </span>
           </div>
 
-          {/* Barra de Progresso */}
           <div className="relative h-4 w-full overflow-hidden rounded-full bg-[#090d16] border border-[#1f293d]/30">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${goalProgress.percent}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
+              transition={{ duration: 0.8 }}
               className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500"
             />
           </div>
@@ -366,7 +397,7 @@ export function DashboardTab() {
         </section>
       )}
 
-      {/* 4. GRÁFICO E DETALHES ADICIONAIS */}
+      {/* 4. PLANEJADOR DE TREINOS E GRÁFICO */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Gráfico de Peso Simplificado */}
         <div className="rounded-3xl border border-[#1f293d]/50 bg-[#131929]/30 p-5 md:col-span-2">
@@ -388,7 +419,6 @@ export function DashboardTab() {
                     stroke="#10b981"
                     strokeWidth={3}
                     dot={{ fill: '#10b981', r: 4 }}
-                    activeDot={{ r: 6 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -401,47 +431,51 @@ export function DashboardTab() {
           </div>
         </div>
 
-        {/* Resumo de Saúde & Sono Rápido */}
+        {/* Planejador de Rotina da Semana */}
         <div className="rounded-3xl border border-[#1f293d]/50 bg-[#131929]/30 p-5 space-y-4">
-          <h3 className="text-sm font-black text-[#f3f4f6]">Volume de Treino Total</h3>
+          <h3 className="text-sm font-black text-[#f3f4f6]">Rotina Planejada da Semana</h3>
           
-          <div className="space-y-3.5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                <Clock className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-[#6b7280] font-bold uppercase">Tempo Acumulado</span>
-                <span className="text-sm font-bold text-[#f3f4f6]">
-                  {trainingStats.totalHours.toFixed(1)} Horas
-                </span>
-              </div>
+          {workoutPlanStatus.length === 0 ? (
+            <div className="text-xs text-[#6b7280] leading-relaxed py-6 text-center">
+              Você ainda não programou sua rotina semanal. Vá em <strong>Ajustes & Metas</strong> para planejar seus treinos!
             </div>
+          ) : (
+            <div className="space-y-3">
+              {workoutPlanStatus.map((item) => (
+                <div
+                  key={item.day}
+                  className={`flex items-center justify-between rounded-xl p-2.5 border text-xs ${
+                    item.completed
+                      ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+                      : item.modality === 'Descanso'
+                      ? 'bg-zinc-950/20 border-[#1f293d]/20 text-[#6b7280]'
+                      : 'bg-[#090d16]/30 border-[#1f293d]/30 text-[#9ca3af]'
+                  }`}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-bold text-[10px] text-[#6b7280]">{item.day.split('-')[0]}</span>
+                    <span className="font-extrabold text-xs">
+                      {item.modality === 'Descanso' ? '💤 Descanso' : item.modality}
+                      {item.cycling_type && item.cycling_type !== 'Livre' ? ` (${item.cycling_type})` : ''}
+                    </span>
+                  </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 text-orange-400">
-                <Flame className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-[#6b7280] font-bold uppercase">Calorias Queimadas</span>
-                <span className="text-sm font-bold text-[#f3f4f6]">
-                  {trainingStats.totalCalories.toLocaleString('pt-BR')} kcal
-                </span>
-              </div>
+                  <div className="flex items-center gap-2">
+                    {item.duration && (
+                      <span className="text-[10px] bg-[#090d16]/60 px-1.5 py-0.5 rounded font-bold text-[#6b7280]">
+                        {item.duration} min
+                      </span>
+                    )}
+                    {item.completed ? (
+                      <CheckCircle2 className="h-4.5 w-4.5 text-emerald-400" />
+                    ) : item.modality !== 'Descanso' ? (
+                      <Circle className="h-4.5 w-4.5 text-[#1f293d]" />
+                    ) : null}
+                  </div>
+                </div>
+              ))}
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                <Award className="h-5 w-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] text-[#6b7280] font-bold uppercase">Meta Principal</span>
-                <span className="text-sm font-bold text-[#f3f4f6]">
-                  {weightStats.target} kg
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

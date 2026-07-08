@@ -6,15 +6,14 @@ import {
   LayoutDashboard,
   Dumbbell,
   Scale,
-  Camera,
-  Heart,
   CalendarDays,
   LogOut,
   Menu,
+  Settings,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export type TabId = 'dashboard' | 'trainings' | 'weights' | 'photos' | 'health' | 'calendar';
+export type TabId = 'dashboard' | 'trainings' | 'weights' | 'calendar' | 'settings';
 
 interface ShellProps {
   activeTab: TabId;
@@ -29,9 +28,8 @@ export function Shell({ activeTab, setActiveTab, children }: ShellProps) {
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'trainings', label: 'Treinos', icon: Dumbbell },
     { id: 'weights', label: 'Métricas', icon: Scale },
-    { id: 'photos', label: 'Evolução', icon: Camera },
-    { id: 'health', label: 'Saúde', icon: Heart },
     { id: 'calendar', label: 'Calendário', icon: CalendarDays },
+    { id: 'settings', label: 'Ajustes & Metas', icon: Settings },
   ] as const;
 
   return (

@@ -36,7 +36,16 @@ export const trainingSchema = z.object({
   modality: z.enum(['Ciclismo', 'Futebol', 'Caminhada', 'Corrida', 'Academia', 'Outro'], {
     message: 'Selecione uma modalidade',
   }),
-  cycling_type: z.enum(['Recuperação', 'Z2', 'Z3', 'Z4', 'Z5', 'Longão', 'Livre']).optional().nullable(),
+  cycling_type: z
+    .union([
+      z.enum(['Recuperação', 'Z2', 'Z3', 'Z4', 'Z5', 'Longão', 'Livre']),
+      z.literal(''),
+      z.null(),
+      z.undefined()
+    ])
+    .transform((val) => (val === '' ? null : val))
+    .optional()
+    .nullable(),
   duration: z
     .union([z.string(), z.number()])
     .transform((val) => (typeof val === 'string' ? parseInt(val) : val))

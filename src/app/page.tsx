@@ -9,9 +9,8 @@ import { Shell, TabId } from '@/components/layout/Shell';
 import { DashboardTab } from '@/components/dashboard/DashboardTab';
 import { TrainingsTab } from '@/components/trainings/TrainingsTab';
 import { WeightsTab } from '@/components/weights/WeightsTab';
-import { PhotosTab } from '@/components/photos/PhotosTab';
-import { HealthTab } from '@/components/health/HealthTab';
 import { CalendarTab } from '@/components/calendar/CalendarTab';
+import { SettingsTab } from '@/components/settings/SettingsTab';
 import { Dumbbell } from 'lucide-react';
 
 export default function Home() {
@@ -51,12 +50,10 @@ export default function Home() {
         return <TrainingsTab />;
       case 'weights':
         return <WeightsTab />;
-      case 'photos':
-        return <PhotosTab />;
-      case 'health':
-        return <HealthTab />;
       case 'calendar':
         return <CalendarTab />;
+      case 'settings':
+        return <SettingsTab />;
       default:
         return <DashboardTab />;
     }

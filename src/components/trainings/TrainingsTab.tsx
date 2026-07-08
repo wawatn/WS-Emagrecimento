@@ -471,6 +471,19 @@ export function TrainingsTab() {
                   />
                 </div>
 
+                {/* Alerta de Erros de Validação */}
+                {Object.keys(errors).length > 0 && (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-xs text-red-400 space-y-1">
+                    <p className="font-bold">Por favor, verifique os campos obrigatórios:</p>
+                    <ul className="list-disc pl-4 space-y-0.5 font-semibold text-[#9ca3af]">
+                      {errors.duration && <li>Duração: {errors.duration.message}</li>}
+                      {errors.cycling_type && <li>Tipo de Ciclismo: {errors.cycling_type.message}</li>}
+                      {errors.modality && <li>Modalidade: {errors.modality.message}</li>}
+                      {errors.date && <li>Data: {errors.date.message}</li>}
+                    </ul>
+                  </div>
+                )}
+
                 {/* Botões de Ação */}
                 <div className="flex gap-3 pt-2">
                   <button

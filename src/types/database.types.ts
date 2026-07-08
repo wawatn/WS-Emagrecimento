@@ -2,6 +2,13 @@
 // PROJETO 100KG - DEFINIÇÕES DE TIPOS TYPESCRIPT PARA O BANCO DE DADOS
 // =========================================================================
 
+export interface PlannedWorkout {
+  day: string; // 'Segunda', 'Terça', etc.
+  modality: string;
+  cycling_type?: string | null;
+  duration?: number | null;
+}
+
 export interface Profile {
   id: string;
   created_at: string;
@@ -11,6 +18,8 @@ export interface Profile {
   avatar_url: string | null;
   start_weight: number | null;
   target_weight: number;
+  weekly_training_target?: number;
+  weekly_workout_plan?: PlannedWorkout[] | null;
 }
 
 export interface Weight {
