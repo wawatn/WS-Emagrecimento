@@ -476,10 +476,11 @@ export function TrainingsTab() {
                   <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4 text-xs text-red-400 space-y-1">
                     <p className="font-bold">Por favor, verifique os campos obrigatórios:</p>
                     <ul className="list-disc pl-4 space-y-0.5 font-semibold text-[#9ca3af]">
-                      {errors.duration && <li>Duração: {errors.duration.message}</li>}
-                      {errors.cycling_type && <li>Tipo de Ciclismo: {errors.cycling_type.message}</li>}
-                      {errors.modality && <li>Modalidade: {errors.modality.message}</li>}
-                      {errors.date && <li>Data: {errors.date.message}</li>}
+                      {Object.entries(errors).map(([field, err]) => (
+                        <li key={field} className="capitalize">
+                          {field === 'duration' ? 'Duração' : field === 'cycling_type' ? 'Tipo de Treino' : field}: {String((err as any)?.message || 'Valor inválido')}
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 )}

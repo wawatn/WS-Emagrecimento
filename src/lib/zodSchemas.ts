@@ -47,8 +47,11 @@ export const trainingSchema = z.object({
     .optional()
     .nullable(),
   duration: z
-    .union([z.string(), z.number()])
-    .transform((val) => (typeof val === 'string' ? parseInt(val) : val))
+    .union([z.string(), z.number(), z.null(), z.undefined()])
+    .transform((val) => {
+      if (val === undefined || val === null || val === '') return 45;
+      return typeof val === 'string' ? parseInt(val, 10) : val;
+    })
     .refine((val) => !isNaN(val) && val > 0, 'A duração deve ser maior que zero minutos'),
   calories: z.any().transform(parseOptionalInt),
   distance: z.any().transform(parseOptionalFloat),
