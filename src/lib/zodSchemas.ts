@@ -53,14 +53,13 @@ export const trainingSchema = z.object({
       return typeof val === 'string' ? parseInt(val, 10) : val;
     })
     .refine((val) => !isNaN(val) && val > 0, 'A duração deve ser maior que zero minutos'),
-  calories: z.any().transform(parseOptionalInt),
-  distance: z.any().transform(parseOptionalFloat),
-  avg_hr: z.any().transform(parseOptionalInt),
-  max_hr: z.any().transform(parseOptionalInt),
-  avg_rose: z.any().transform(parseOptionalInt), // Mapeado extra
-  avg_cadence: z.any().transform(parseOptionalInt),
-  avg_speed: z.any().transform(parseOptionalFloat),
-  elevation: z.any().transform(parseOptionalFloat),
+  calories: z.any().transform(parseOptionalInt).optional().nullable(),
+  distance: z.any().transform(parseOptionalFloat).optional().nullable(),
+  avg_hr: z.any().transform(parseOptionalInt).optional().nullable(),
+  max_hr: z.any().transform(parseOptionalInt).optional().nullable(),
+  avg_cadence: z.any().transform(parseOptionalInt).optional().nullable(),
+  avg_speed: z.any().transform(parseOptionalFloat).optional().nullable(),
+  elevation: z.any().transform(parseOptionalFloat).optional().nullable(),
   notes: z.string().optional().nullable(),
 }).refine((data) => {
   if (data.modality === 'Ciclismo' && !data.cycling_type) {
